@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Emberblock">
+<meta name="theme-color" content="#0b0e12">
+<title>Emberblock 100</title>
+<style>
+  :root{
+    --bg-void:#0b0e12;
+    --bg-void-2:#141922;
+    --panel:#161b22;
+    --panel-edge:#0a0c10;
+    --cell-empty:#202730;
+    --cell-empty-hi:#2a323d;
+    --ember-hi:#f2a962;
+    --ember-mid:#d9822f;
+    --ember-low:#7c3f16;
+    --text:#f1ece1;
+    --text-dim:#8d99a6;
+    --sage:#7a9a73;
+    --danger:#c1503a;
+    --ghost-valid: rgba(122,154,115,.55);
+    --ghost-invalid: rgba(193,80,58,.55);
+  }
+
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    height:100%;
+    margin:0;
+    overscroll-behavior:none;
+    touch-action:manipulation;
+    background:var(--bg-void);
+  }
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    color:var(--text);
+    display:flex;
+    justify-content:center;
+    min-height:100%;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    background:
+      radial-gradient(ellipse at 50% -10%, #1c2430 0%, transparent 55%),
+      linear-gradient(180deg, var(--bg-void) 0%, var(--bg-void-2) 100%);
+    user-select:none;
+  }
+
+  #app{
+    width:100%;
+    max-width:480px;
+    padding:18px 14px 22px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+
+  /* ---------- header ---------- */
+  header{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+  }
+  .best{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    color:var(--sage);
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:.02em;
+    text-transform:uppercase;
+  }
+  .best.pulse{ animation:pulse 0.6s ease; }
+  @keyframes pulse{
+    0%{ text-shadow:0 0 0 rgba(122,154,115,0); }
+    40%{ text-shadow:0 0 14px rgba(122,154,115,.9); }
+    100%{ text-shadow:0 0 0 rgba(122,154,115,0); }
+  }
+  .best b{ color:var(--text); font-size:15px; }
+  .score-block{ text-align:center; flex:1; }
+  .score{
+    font-size:44px;
+    font-weight:800;
+    letter-spacing:-0.02em;
+    font-variant-numeric:tabular-nums;
+    line-height:1;
+    text-shadow:0 0 24px rgba(217,130,47,.25);
+  }
+  .score-label{
+    font-size:11px;
+    color:var(--text-dim);
+    text-transform:uppercase;
+    letter-spacing:.12em;
+    margin-top:2px;
+  }
+  .icon-btn{
+    background:var(--panel);
+    border:1px solid #262e39;
+    color:var(--text-dim);
+    width:38px;height:38px;
+    border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px;
+    cursor:pointer;
+  }
+  .icon-btn:active{ transform:scale(.94); }
+
+  /* ---------- board ---------- */
+  #board-wrap{
+    background:var(--panel);
+    border-radius:18px;
+    padding:10px;
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,.03),
+      inset 0 -6px 18px var(--panel-edge),
+      0 12px 30px rgba(0,0,0,.45);
+  }
+  #board{
+    display:grid;
+    grid-template-columns:repeat(10,1fr);
+    grid-template-rows:repeat(10,1fr);
+    gap:3px;
+    aspect-ratio:1/1;
+    touch-action:none;
+  }
+  .cell{
+    border-radius:5px;
+    background:var(--cell-empty);
+    box-shadow:inset 0 1px 0 var(--cell-empty-hi), inset 0 -2px 4px rgba(0,0,0,.35);
+    position:relative;
+  }
+  .cell.filled{
+    background:linear-gradient(155deg, var(--ember-hi) 0%, var(--ember-mid) 55%, var(--ember-low) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.35),
+      inset 0 -3px 6px rgba(0,0,0,.35),
+      0 0 10px rgba(217,130,47,.25);
+  }
+  .cell.preview-valid{ background:var(--ghost-valid); box-shadow:inset 0 0 0 2px rgba(122,154,115,.9); }
+  .cell.preview-invalid{ background:var(--ghost-invalid); box-shadow:inset 0 0 0 2px rgba(193,80,58,.9); }
+  .cell.clearing{ animation:crack .38s ease forwards; z-index:2; }
+  @keyframes crack{
+    0%{ filter:brightness(1); transform:scale(1); }
+    35%{ filter:brightness(2.2); transform:scale(1.05); }
+    100%{ filter:brightness(2.6); transform:scale(.5); opacity:0; }
+  }
+
+  /* ---------- tray ---------- */
+  #tray-wrap{
+    background:var(--panel);
+    border-radius:18px;
+    padding:14px 8px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:6px;
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,.03),
+      inset 0 -6px 18px var(--panel-edge),
+      0 12px 30px rgba(0,0,0,.45);
+  }
+  .tray-slot{
+    flex:1;
+    height:88px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    touch-action:none;
+  }
+  .tray-piece{ display:grid; gap:3px; }
+  .tray-piece .tcell{
+    width:20px;height:20px;
+    border-radius:4px;
+    background:transparent;
+  }
+  .tray-piece .tcell.on{
+    background:linear-gradient(155deg, var(--ember-hi) 0%, var(--ember-mid) 55%, var(--ember-low) 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 0 8px rgba(217,130,47,.25);
+  }
+  .tray-slot.dragging .tray-piece{ opacity:.18; }
+  .tray-slot.empty-slot{ opacity:0; }
+
+  /* ---------- controls ---------- */
+  #controls{ display:flex; gap:10px; }
+  .btn{
+    flex:1;
+    background:var(--panel);
+    border:1px solid #262e39;
+    color:var(--text);
+    padding:12px;
+    border-radius:12px;
+    font-size:14px;
+    font-weight:600;
+    text-align:center;
+    cursor:pointer;
+  }
+  .btn:active{ transform:scale(.98); }
+  .btn .count{ color:var(--ember-hi); font-weight:800; }
+  .btn:disabled{ opacity:.4; }
+
+  /* ---------- drag ghost ---------- */
+  #ghost{
+    position:fixed;
+    top:0; left:0;
+    display:grid;
+    gap:3px;
+    pointer-events:none;
+    z-index:50;
+    opacity:0;
+  }
+  #ghost .gcell{ border-radius:5px; }
+  #ghost .gcell.on{
+    background:linear-gradient(155deg, var(--ember-hi) 0%, var(--ember-mid) 55%, var(--ember-low) 100%);
+    box-shadow:0 0 14px rgba(217,130,47,.5), inset 0 1px 0 rgba(255,255,255,.4);
+  }
+
+  /* ---------- overlays ---------- */
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(6,8,11,.78);
+    display:flex; align-items:center; justify-content:center;
+    z-index:100;
+    padding:24px;
+  }
+  .overlay.hidden{ display:none; }
+  .modal{
+    background:var(--panel);
+    border-radius:18px;
+    padding:24px;
+    width:100%;
+    max-width:360px;
+    text-align:center;
+    box-shadow:0 20px 50px rgba(0,0,0,.5);
+  }
+  .modal h2{ margin:0 0 6px; font-size:22px; }
+  .modal p{ color:var(--text-dim); font-size:14px; line-height:1.5; }
+  .modal .final-score{ font-size:40px; font-weight:800; color:var(--ember-hi); margin:10px 0; }
+  .modal textarea{
+    width:100%; height:80px; margin:12px 0;
+    background:var(--cell-empty); color:var(--text-dim);
+    border:1px solid #2e3742; border-radius:10px;
+    font-size:11px; padding:8px; resize:none;
+  }
+  .modal .row{ display:flex; gap:8px; margin-top:6px; }
+  .modal .row .btn{ margin:0; }
+  .modal .close-x{
+    float:right; background:none; border:none; color:var(--text-dim);
+    font-size:18px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <button class="icon-btn" id="backupBtn" title="Backup score">&#9881;</button>
+    <div class="score-block">
+      <div class="score" id="scoreEl">0</div>
+      <div class="score-label">score</div>
+    </div>
+    <div class="best" id="bestWrap">&#9873; <b id="bestEl">0</b></div>
+  </header>
+
+  <div id="board-wrap"><div id="board"></div></div>
+
+  <div id="tray-wrap">
+    <div class="tray-slot" data-slot="0"></div>
+    <div class="tray-slot" data-slot="1"></div>
+    <div class="tray-slot" data-slot="2"></div>
+  </div>
+
+  <div id="controls">
+    <button class="btn" id="shuffleBtn">Shuffle (<span class="count" id="shuffleCount">2</span>)</button>
+    <button class="btn" id="restartBtn">New Game</button>
+  </div>
+</div>
+
+<div id="ghost"></div>
+
+<div class="overlay hidden" id="gameoverOverlay">
+  <div class="modal">
+    <h2>Board's full</h2>
+    <p>No space left for any of your pieces.</p>
+    <div class="final-score" id="finalScoreEl">0</div>
+    <p id="newBestMsg" style="display:none;color:var(--sage);font-weight:600;">New best score!</p>
+    <div class="row">
+      <button class="btn" id="playAgainBtn">Play Again</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="backupOverlay">
+  <div class="modal">
+    <button class="close-x" id="backupCloseBtn">&times;</button>
+    <h2>Backup your save</h2>
+    <p>Copy this code somewhere safe (like Notes). If your browser ever clears its storage, paste it back in to restore your best score and game.</p>
+    <textarea id="backupCode" readonly></textarea>
+    <div class="row">
+      <button class="btn" id="copyBackupBtn">Copy Code</button>
+    </div>
+    <p style="margin-top:16px;">Restoring from a code:</p>
+    <textarea id="restoreCode" placeholder="Paste your backup code here"></textarea>
+    <div class="row">
+      <button class="btn" id="restoreBtn">Restore</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var SIZE = 10;
+  var STORAGE_KEY = "emberblock100_save_v1";
+  var SHUFFLES_PER_GAME = 2;
+
+  /* ---------------- shape definitions ---------------- */
+  // '#' = filled cell, '.' = empty cell, each array = rows of the piece
+  var RAW_SHAPES = [
+    ["#"],
+    ["##"],
+    ["#","#"],
+    ["###"],
+    ["#","#","#"],
+    ["####"],
+    ["#","#","#","#"],
+    ["#####"],
+    ["#","#","#","#","#"],
+    ["##","##"],
+    ["###","###","###"],
+    ["#.","##"],
+    [".#","##"],
+    ["##","#."],
+    ["##",".#"],
+    ["###",".#."],
+    [".#.","###"],
+    [".#","##",".#"],
+    ["#.","##","#."],
+    [".##","##."],
+    ["##.",".##"],
+    ["#.","##",".#"],
+    [".#","##","#."],
+    ["#.","#.","##"],
+    ["##",".#",".#"],
+    [".#",".#","##"],
+    ["##","#.","#."],
+    [".#.","###",".#."]
+  ];
+
+  function parseShape(rows){
+    var cells = [];
+    var h = rows.length, w = 0;
+    for (var r=0;r<rows.length;r++){
+      w = Math.max(w, rows[r].length);
+      for (var c=0;c<rows[r].length;c++){
+        if (rows[r][c] === "#") cells.push([r,c]);
+      }
+    }
+    return { cells: cells, w: w, h: h };
+  }
+
+  var SHAPES = RAW_SHAPES.map(parseShape);
+
+  // weighted bag so small pieces show up more often than big ones
+  var WEIGHTED_POOL = [];
+  SHAPES.forEach(function(shape, idx){
+    var n = shape.cells.length;
+    var weight = n <= 2 ? 3 : (n <= 4 ? 2 : 1);
+    for (var i=0;i<weight;i++) WEIGHTED_POOL.push(idx);
+  });
+
+  function randomShapeIndex(){
+    return WEIGHTED_POOL[Math.floor(Math.random()*WEIGHTED_POOL.length)];
+  }
+
+  /* ---------------- state ---------------- */
+  var board = [];         // SIZE x SIZE booleans
+  var tray = [null,null,null]; // shape indices or null
+  var score = 0;
+  var best = 0;
+  var shufflesLeft = SHUFFLES_PER_GAME;
+
+  function newBoard(){
+    var b = [];
+    for (var r=0;r<SIZE;r++){ b.push(new Array(SIZE).fill(false)); }
+    return b;
+  }
+
+  function refillTray(){
+    for (var i=0;i<3;i++){ tray[i] = randomShapeIndex(); }
+  }
+
+  /* ---------------- persistence ---------------- */
+  function safeGet(key){
+    try { return localStorage.getItem(key); } catch(e){ return null; }
+  }
+  function safeSet(key,val){
+    try { localStorage.setItem(key,val); return true; } catch(e){ return false; }
+  }
+
+  function serializeState(){
+    return JSON.stringify({
+      board: board.map(function(row){ return row.map(function(v){ return v?1:0; }); }),
+      tray: tray,
+      score: score,
+      best: best,
+      shufflesLeft: shufflesLeft,
+      v: 1
+    });
+  }
+
+  function save(){
+    safeSet(STORAGE_KEY, serializeState());
+  }
+
+  function applyState(obj){
+    board = obj.board.map(function(row){ return row.map(function(v){ return !!v; }); });
+    tray = obj.tray;
+    score = obj.score || 0;
+    best = obj.best || 0;
+    shufflesLeft = (typeof obj.shufflesLeft === "number") ? obj.shufflesLeft : SHUFFLES_PER_GAME;
+  }
+
+  function loadOrInit(){
+    var raw = safeGet(STORAGE_KEY);
+    if (raw){
+      try {
+        var obj = JSON.parse(raw);
+        if (obj && obj.board && obj.board.length === SIZE) {
+          applyState(obj);
+          return;
+        }
+      } catch(e){ /* fall through to fresh game */ }
+    }
+    board = newBoard();
+    score = 0;
+    shufflesLeft = SHUFFLES_PER_GAME;
+    refillTray();
+    save();
+  }
+
+  /* ---------------- DOM refs ---------------- */
+  var boardEl = document.getElementById("board");
+  var scoreEl = document.getElementById("scoreEl");
+  var bestEl = document.getElementById("bestEl");
+  var bestWrap = document.getElementById("bestWrap");
+  var shuffleBtn = document.getElementById("shuffleBtn");
+  var shuffleCountEl = document.getElementById("shuffleCount");
+  var restartBtn = document.getElementById("restartBtn");
+  var ghostEl = document.getElementById("ghost");
+  var gameoverOverlay = document.getElementById("gameoverOverlay");
+  var finalScoreEl = document.getElementById("finalScoreEl");
+  var newBestMsg = document.getElementById("newBestMsg");
+  var playAgainBtn = document.getElementById("playAgainBtn");
+  var backupBtn = document.getElementById("backupBtn");
+  var backupOverlay = document.getElementById("backupOverlay");
+  var backupCloseBtn = document.getElementById("backupCloseBtn");
+  var backupCode = document.getElementById("backupCode");
+  var copyBackupBtn = document.getElementById("copyBackupBtn");
+  var restoreCode = document.getElementById("restoreCode");
+  var restoreBtn = document.getElementById("restoreBtn");
+
+  var cellEls = []; // [r][c]
+
+  function buildBoardDom(){
+    boardEl.innerHTML = "";
+    cellEls = [];
+    for (var r=0;r<SIZE;r++){
+      var rowArr = [];
+      for (var c=0;c<SIZE;c++){
+        var d = document.createElement("div");
+        d.className = "cell";
+        d.dataset.r = r;
+        d.dataset.c = c;
+        boardEl.appendChild(d);
+        rowArr.push(d);
+      }
+      cellEls.push(rowArr);
+    }
+  }
+
+  function renderBoard(){
+    for (var r=0;r<SIZE;r++){
+      for (var c=0;c<SIZE;c++){
+        cellEls[r][c].classList.toggle("filled", !!board[r][c]);
+      }
+    }
+  }
+
+  function renderScore(){
+    scoreEl.textContent = score.toLocaleString();
+    bestEl.textContent = best.toLocaleString();
+    shuffleCountEl.textContent = shufflesLeft;
+    shuffleBtn.disabled = shufflesLeft <= 0;
+  }
+
+  /* ---------------- tray rendering ---------------- */
+  var traySlotEls = Array.prototype.slice.call(document.querySelectorAll(".tray-slot"));
+
+  function renderTray(){
+    traySlotEls.forEach(function(slotEl, i){
+      slotEl.innerHTML = "";
+      var shapeIdx = tray[i];
+      slotEl.classList.toggle("empty-slot", shapeIdx === null);
+      if (shapeIdx === null) return;
+      var shape = SHAPES[shapeIdx];
+      var grid = document.createElement("div");
+      grid.className = "tray-piece";
+      grid.style.gridTemplateColumns = "repeat(" + shape.w + ", 20px)";
+      grid.style.gridTemplateRows = "repeat(" + shape.h + ", 20px)";
+      var occupied = {};
+      shape.cells.forEach(function(cell){ occupied[cell[0]+"_"+cell[1]] = true; });
+      for (var r=0;r<shape.h;r++){
+        for (var c=0;c<shape.w;c++){
+          var tc = document.createElement("div");
+          tc.className = "tcell" + (occupied[r+"_"+c] ? " on" : "");
+          grid.appendChild(tc);
+        }
+      }
+      slotEl.appendChild(grid);
+    });
+  }
+
+  /* ---------------- placement logic ---------------- */
+  function canPlace(shapeIdx, anchorR, anchorC){
+    var shape = SHAPES[shapeIdx];
+    for (var i=0;i<shape.cells.length;i++){
+      var r = anchorR + shape.cells[i][0];
+      var c = anchorC + shape.cells[i][1];
+      if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) return false;
+      if (board[r][c]) return false;
+    }
+    return true;
+  }
+
+  function hasAnyPlacement(shapeIdx){
+    for (var r=0;r<SIZE;r++){
+      for (var c=0;c<SIZE;c++){
+        if (canPlace(shapeIdx, r, c)) return true;
+      }
+    }
+    return false;
+  }
+
+  function commitPlacement(shapeIdx, anchorR, anchorC){
+    var shape = SHAPES[shapeIdx];
+    shape.cells.forEach(function(cell){
+      board[anchorR+cell[0]][anchorC+cell[1]] = true;
+    });
+    score += shape.cells.length;
+    renderBoard();
+    renderScore();
+
+    var cleared = findClearedLines();
+    if (cleared.rows.length || cleared.cols.length){
+      animateClear(cleared, function(){
+        applyClear(cleared);
+        var lines = cleared.rows.length + cleared.cols.length;
+        score += 18*lines + (lines>1 ? (lines-1)*12 : 0);
+        renderBoard();
+        updateBestIfNeeded();
+        renderScore();
+        afterMoveHousekeeping(shapeIdx);
+      });
+    } else {
+      updateBestIfNeeded();
+      afterMoveHousekeeping(shapeIdx);
+    }
+  }
+
+  function afterMoveHousekeeping(usedShapeIdx){
+    var slotIdx = tray.indexOf(usedShapeIdx);
+    if (slotIdx !== -1) tray[slotIdx] = null;
+    if (tray.every(function(v){ return v === null; })){
+      refillTray();
+      renderTray();
+    }
+    save();
+    checkGameOver();
+  }
+
+  function findClearedLines(){
+    var rows = [];
+    var cols = [];
+    for (var r=0;r<SIZE;r++){
+      if (board[r].every(Boolean)) rows.push(r);
+    }
+    for (var c=0;c<SIZE;c++){
+      var full = true;
+      for (var r2=0;r2<SIZE;r2++){ if (!board[r2][c]){ full=false; break; } }
+      if (full) cols.push(c);
+    }
+    return { rows: rows, cols: cols };
+  }
+
+  function animateClear(cleared, done){
+    var cells = [];
+    cleared.rows.forEach(function(r){
+      for (var c=0;c<SIZE;c++) cells.push(cellEls[r][c]);
+    });
+    cleared.cols.forEach(function(c){
+      for (var r=0;r<SIZE;r++) cells.push(cellEls[r][c]);
+    });
+    cells.forEach(function(el){ el.classList.add("clearing"); });
+    setTimeout(function(){
+      cells.forEach(function(el){ el.classList.remove("clearing"); });
+      done();
+    }, 380);
+  }
+
+  function applyClear(cleared){
+    cleared.rows.forEach(function(r){
+      for (var c=0;c<SIZE;c++) board[r][c] = false;
+    });
+    cleared.cols.forEach(function(c){
+      for (var r=0;r<SIZE;r++) board[r][c] = false;
+    });
+  }
+
+  function updateBestIfNeeded(){
+    if (score > best){
+      best = score;
+      bestWrap.classList.remove("pulse");
+      void bestWrap.offsetWidth; // restart animation
+      bestWrap.classList.add("pulse");
+    }
+  }
+
+  function checkGameOver(){
+    var anyPlayable = tray.some(function(idx){
+      return idx !== null && hasAnyPlacement(idx);
+    });
+    if (!anyPlayable){
+      finalScoreEl.textContent = score.toLocaleString();
+      newBestMsg.style.display = (score >= best && score > 0) ? "block" : "none";
+      gameoverOverlay.classList.remove("hidden");
+    }
+  }
+
+  /* ---------------- drag & drop ---------------- */
+  var CELL_PX = 0; // computed on drag start
+  var dragging = null; // { slotIdx, shapeIdx, w, h, anchorR, anchorC, valid }
+
+  function computeCellPx(){
+    var rect = boardEl.getBoundingClientRect();
+    return rect.width / SIZE;
+  }
+
+  function clearPreview(){
+    for (var r=0;r<SIZE;r++){
+      for (var c=0;c<SIZE;c++){
+        cellEls[r][c].classList.remove("preview-valid","preview-invalid");
+      }
+    }
+  }
+
+  function showPreview(shapeIdx, anchorR, anchorC, valid){
+    var shape = SHAPES[shapeIdx];
+    shape.cells.forEach(function(cell){
+      var r = anchorR + cell[0], c = anchorC + cell[1];
+      if (r>=0 && r<SIZE && c>=0 && c<SIZE){
+        cellEls[r][c].classList.add(valid ? "preview-valid" : "preview-invalid");
+      }
+    });
+  }
+
+  function startDrag(slotIdx, shapeIdx, pointerX, pointerY){
+    CELL_PX = computeCellPx();
+    var shape = SHAPES[shapeIdx];
+    dragging = { slotIdx: slotIdx, shapeIdx: shapeIdx, w: shape.w, h: shape.h, anchorR: -1, anchorC: -1, valid: false };
+
+    traySlotEls[slotIdx].classList.add("dragging");
+
+    ghostEl.innerHTML = "";
+    ghostEl.style.gridTemplateColumns = "repeat(" + shape.w + ", " + CELL_PX + "px)";
+    ghostEl.style.gridTemplateRows = "repeat(" + shape.h + ", " + CELL_PX + "px)";
+    var occupied = {};
+    shape.cells.forEach(function(cell){ occupied[cell[0]+"_"+cell[1]] = true; });
+    for (var r=0;r<shape.h;r++){
+      for (var c=0;c<shape.w;c++){
+        var gc = document.createElement("div");
+        gc.className = "gcell" + (occupied[r+"_"+c] ? " on" : "");
+        ghostEl.appendChild(gc);
+      }
+    }
+    ghostEl.style.opacity = "1";
+    updateGhostPosition(pointerX, pointerY);
+  }
+
+  var LIFT = 78; // px the ghost floats above the finger
+
+  function updateGhostPosition(x, y){
+    if (!dragging) return;
+    var w = dragging.w * CELL_PX + (dragging.w-1)*3;
+    var h = dragging.h * CELL_PX + (dragging.h-1)*3;
+    var left = x - w/2;
+    var top = y - h - LIFT;
+    ghostEl.style.left = left + "px";
+    ghostEl.style.top = top + "px";
+
+    // find anchor cell under the shape's [0,0] cell center
+    var probeX = left + CELL_PX/2;
+    var probeY = top + CELL_PX/2;
+    var el = document.elementFromPoint(probeX, probeY);
+    var cellEl = el ? el.closest(".cell") : null;
+
+    clearPreview();
+    if (cellEl){
+      var r = parseInt(cellEl.dataset.r,10);
+      var c = parseInt(cellEl.dataset.c,10);
+      dragging.anchorR = r;
+      dragging.anchorC = c;
+      dragging.valid = canPlace(dragging.shapeIdx, r, c);
+      showPreview(dragging.shapeIdx, r, c, dragging.valid);
+    } else {
+      dragging.anchorR = -1;
+      dragging.anchorC = -1;
+      dragging.valid = false;
+    }
+  }
+
+  function endDrag(){
+    if (!dragging) return;
+    var d = dragging;
+    traySlotEls[d.slotIdx].classList.remove("dragging");
+    ghostEl.style.opacity = "0";
+    clearPreview();
+    if (d.valid){
+      commitPlacement(d.shapeIdx, d.anchorR, d.anchorC);
+      renderTray();
+    }
+    dragging = null;
+  }
+
+  traySlotEls.forEach(function(slotEl, idx){
+    slotEl.addEventListener("pointerdown", function(e){
+      if (tray[idx] === null) return;
+      e.preventDefault();
+      slotEl.setPointerCapture(e.pointerId);
+      startDrag(idx, tray[idx], e.clientX, e.clientY);
+    });
+    slotEl.addEventListener("pointermove", function(e){
+      if (dragging && dragging.slotIdx === idx){
+        updateGhostPosition(e.clientX, e.clientY);
+      }
+    });
+    slotEl.addEventListener("pointerup", function(e){
+      if (dragging && dragging.slotIdx === idx) endDrag();
+    });
+    slotEl.addEventListener("pointercancel", function(e){
+      if (dragging && dragging.slotIdx === idx) endDrag();
+    });
+  });
+
+  /* ---------------- controls ---------------- */
+  shuffleBtn.addEventListener("click", function(){
+    if (shufflesLeft <= 0) return;
+    shufflesLeft -= 1;
+    refillTray();
+    renderTray();
+    renderScore();
+    save();
+    checkGameOver();
+  });
+
+  function startNewGame(){
+    board = newBoard();
+    score = 0;
+    shufflesLeft = SHUFFLES_PER_GAME;
+    refillTray();
+    renderBoard();
+    renderTray();
+    renderScore();
+    save();
+    gameoverOverlay.classList.add("hidden");
+  }
+
+  restartBtn.addEventListener("click", function(){
+    if (score > 0 && !confirm("Start a new game? Your current board will be cleared.")) return;
+    startNewGame();
+  });
+  playAgainBtn.addEventListener("click", startNewGame);
+
+  /* ---------------- backup / restore ---------------- */
+  function openBackup(){
+    var payload = serializeState();
+    backupCode.value = btoa(unescape(encodeURIComponent(payload)));
+    backupOverlay.classList.remove("hidden");
+  }
+  backupBtn.addEventListener("click", openBackup);
+  backupCloseBtn.addEventListener("click", function(){ backupOverlay.classList.add("hidden"); });
+
+  copyBackupBtn.addEventListener("click", function(){
+    backupCode.select();
+    backupCode.setSelectionRange(0, 99999);
+    try {
+      navigator.clipboard.writeText(backupCode.value);
+      copyBackupBtn.textContent = "Copied!";
+      setTimeout(function(){ copyBackupBtn.textContent = "Copy Code"; }, 1500);
+    } catch(e){
+      document.execCommand("copy");
+    }
+  });
+
+  restoreBtn.addEventListener("click", function(){
+    var code = restoreCode.value.trim();
+    if (!code) return;
+    try {
+      var json = decodeURIComponent(escape(atob(code)));
+      var obj = JSON.parse(json);
+      if (!obj.board) throw new Error("bad save");
+      applyState(obj);
+      save();
+      renderBoard();
+      renderTray();
+      renderScore();
+      backupOverlay.classList.add("hidden");
+      gameoverOverlay.classList.add("hidden");
+      restoreCode.value = "";
+    } catch(e){
+      alert("That code didn't look right. Double check you copied the whole thing.");
+    }
+  });
+
+  /* ---------------- boot ---------------- */
+  buildBoardDom();
+  loadOrInit();
+  renderBoard();
+  renderTray();
+  renderScore();
+  checkGameOver();
+
+  window.addEventListener("resize", function(){ CELL_PX = computeCellPx(); });
+})();
+</script>
+</body>
+</html>
