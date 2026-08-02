@@ -34,6 +34,7 @@
     min-height:100%;
     min-height:100vh;
     min-height:100dvh;
+    min-height:var(--real-vh, 100dvh);
     margin:0;
     overscroll-behavior:none;
     touch-action:manipulation;
@@ -47,6 +48,7 @@
     min-height:100%;
     min-height:100vh;
     min-height:100dvh;
+    min-height:var(--real-vh, 100dvh);
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     background:
       radial-gradient(ellipse at 50% -10%, #1c2430 0%, transparent 55%),
@@ -362,6 +364,13 @@
 <script>
 (function(){
   "use strict";
+
+  function setRealViewportHeight(){
+    document.documentElement.style.setProperty("--real-vh", window.innerHeight + "px");
+  }
+  setRealViewportHeight();
+  window.addEventListener("resize", setRealViewportHeight);
+  window.addEventListener("orientationchange", setRealViewportHeight);
 
   var SIZE = 10;
   var STORAGE_KEY = "emberblock100_save_v2";
