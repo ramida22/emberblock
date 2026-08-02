@@ -31,7 +31,9 @@
 
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{
-    height:100%;
+    min-height:100%;
+    min-height:100vh;
+    min-height:100dvh;
     margin:0;
     overscroll-behavior:none;
     touch-action:manipulation;
@@ -43,6 +45,8 @@
     display:flex;
     justify-content:center;
     min-height:100%;
+    min-height:100vh;
+    min-height:100dvh;
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     background:
       radial-gradient(ellipse at 50% -10%, #1c2430 0%, transparent 55%),
