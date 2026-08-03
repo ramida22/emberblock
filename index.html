@@ -447,7 +447,7 @@
   var WEIGHTED_POOL = [];
   BASE_SHAPES.forEach(function(shape, idx){
     var n = shape.cells.length;
-    var weight = n <= 2 ? 3 : (n <= 4 ? 2 : 1);
+    var weight = n <= 2 ? 4 : (n <= 4 ? 4 : 3);
     for (var i=0;i<weight;i++) WEIGHTED_POOL.push(idx);
   });
 
@@ -479,7 +479,7 @@
   var stars = 0;
   var pointsSinceLastStar = 0;
   var clearedSinceLastStar = false;
-  var bigClearSinceLastStar = false;
+  var maxLinesSinceLastStar = 0;
   var rotationCharges = 0;
   var hasUsedContinueThisGame = false;
 
@@ -521,7 +521,7 @@
       stars: stars,
       pointsSinceLastStar: pointsSinceLastStar,
       clearedSinceLastStar: clearedSinceLastStar,
-      bigClearSinceLastStar: bigClearSinceLastStar,
+      maxLinesSinceLastStar: maxLinesSinceLastStar,
       rotationCharges: rotationCharges,
       hasUsedContinueThisGame: hasUsedContinueThisGame,
       v: 2
@@ -540,7 +540,7 @@
     stars = obj.stars || 0;
     pointsSinceLastStar = obj.pointsSinceLastStar || 0;
     clearedSinceLastStar = !!obj.clearedSinceLastStar;
-    bigClearSinceLastStar = !!obj.bigClearSinceLastStar;
+    maxLinesSinceLastStar = obj.maxLinesSinceLastStar || 0;
     rotationCharges = obj.rotationCharges || 0;
     hasUsedContinueThisGame = !!obj.hasUsedContinueThisGame;
   }
@@ -562,7 +562,7 @@
     stars = 0;
     pointsSinceLastStar = 0;
     clearedSinceLastStar = false;
-    bigClearSinceLastStar = false;
+    maxLinesSinceLastStar = 0;
     rotationCharges = 0;
     hasUsedContinueThisGame = false;
     var oldRaw = safeGet(OLD_STORAGE_KEY);
@@ -856,10 +856,13 @@
 
   function maybeAwardStar(){
     if (pointsSinceLastStar >= STAR_THRESHOLD && clearedSinceLastStar){
-      stars += bigClearSinceLastStar ? 2 : 1;
+      var award = 1;
+      if (maxLinesSinceLastStar >= 4) award = 3;
+      else if (maxLinesSinceLastStar >= 3) award = 2;
+      stars += award;
       pointsSinceLastStar = 0;
       clearedSinceLastStar = false;
-      bigClearSinceLastStar = false;
+      maxLinesSinceLastStar = 0;
       pulseStars();
     }
   }
@@ -890,13 +893,14 @@
     var cleared = findClearedLines();
     var lines = cleared.rows.length + cleared.cols.length;
     if (lines > 0){
+      inputLocked = true;
       animateClear(cleared, function(){
         applyClear(cleared);
         var bonus = 10*lines + 5*lines*(lines-1);
         score += bonus;
         pointsSinceLastStar += bonus;
         clearedSinceLastStar = true;
-        if (lines >= 3) bigClearSinceLastStar = true;
+        if (lines > maxLinesSinceLastStar) maxLinesSinceLastStar = lines;
         renderBoard();
         updateBestIfNeeded();
         maybeAwardStar();
@@ -906,6 +910,7 @@
         }
         renderScore();
         afterMoveHousekeeping(slotIdx);
+        inputLocked = false;
       });
     } else {
       updateBestIfNeeded();
@@ -940,6 +945,7 @@
   /* ---------------- drag, tap-to-rotate & drop ---------------- */
   var CELL_PX = 0;
   var dragging = null;   // { slotIdx, baseId, rot, w, h, anchorR, anchorC, valid }
+  var inputLocked = false; // true while a line-clear animation is resolving
   var pendingTap = null; // { idx, startX, startY }
   var TAP_MOVE_THRESHOLD = 10;
   var LIFT = 78;
@@ -1043,7 +1049,7 @@
 
   traySlotEls.forEach(function(slotEl, idx){
     slotEl.addEventListener("pointerdown", function(e){
-      if (tray[idx] === null) return;
+      if (tray[idx] === null || inputLocked) return;
       e.preventDefault();
       slotEl.setPointerCapture(e.pointerId);
       pendingTap = { idx: idx, startX: e.clientX, startY: e.clientY };
