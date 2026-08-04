@@ -447,7 +447,7 @@
   var WEIGHTED_POOL = [];
   BASE_SHAPES.forEach(function(shape, idx){
     var n = shape.cells.length;
-    var weight = n <= 2 ? 4 : (n <= 4 ? 4 : 3);
+    var weight = n <= 2 ? 3 : (n <= 4 ? 4 : 4);
     for (var i=0;i<weight;i++) WEIGHTED_POOL.push(idx);
   });
 
@@ -479,7 +479,6 @@
   var stars = 0;
   var pointsSinceLastStar = 0;
   var clearedSinceLastStar = false;
-  var maxLinesSinceLastStar = 0;
   var rotationCharges = 0;
   var hasUsedContinueThisGame = false;
 
@@ -521,7 +520,6 @@
       stars: stars,
       pointsSinceLastStar: pointsSinceLastStar,
       clearedSinceLastStar: clearedSinceLastStar,
-      maxLinesSinceLastStar: maxLinesSinceLastStar,
       rotationCharges: rotationCharges,
       hasUsedContinueThisGame: hasUsedContinueThisGame,
       v: 2
@@ -540,7 +538,6 @@
     stars = obj.stars || 0;
     pointsSinceLastStar = obj.pointsSinceLastStar || 0;
     clearedSinceLastStar = !!obj.clearedSinceLastStar;
-    maxLinesSinceLastStar = obj.maxLinesSinceLastStar || 0;
     rotationCharges = obj.rotationCharges || 0;
     hasUsedContinueThisGame = !!obj.hasUsedContinueThisGame;
   }
@@ -562,7 +559,6 @@
     stars = 0;
     pointsSinceLastStar = 0;
     clearedSinceLastStar = false;
-    maxLinesSinceLastStar = 0;
     rotationCharges = 0;
     hasUsedContinueThisGame = false;
     var oldRaw = safeGet(OLD_STORAGE_KEY);
@@ -856,13 +852,9 @@
 
   function maybeAwardStar(){
     if (pointsSinceLastStar >= STAR_THRESHOLD && clearedSinceLastStar){
-      var award = 1;
-      if (maxLinesSinceLastStar >= 4) award = 3;
-      else if (maxLinesSinceLastStar >= 3) award = 2;
-      stars += award;
+      stars += 1;
       pointsSinceLastStar = 0;
       clearedSinceLastStar = false;
-      maxLinesSinceLastStar = 0;
       pulseStars();
     }
   }
@@ -900,10 +892,16 @@
         score += bonus;
         pointsSinceLastStar += bonus;
         clearedSinceLastStar = true;
-        if (lines > maxLinesSinceLastStar) maxLinesSinceLastStar = lines;
         renderBoard();
         updateBestIfNeeded();
         maybeAwardStar();
+        if (lines >= 4){
+          stars += 3;
+          pulseStars();
+        } else if (lines === 3){
+          stars += 2;
+          pulseStars();
+        }
         if (board.every(function(row){ return row.every(function(v){ return !v; }); })){
           stars += 2;
           pulseStars();
