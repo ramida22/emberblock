@@ -447,7 +447,7 @@
   var WEIGHTED_POOL = [];
   BASE_SHAPES.forEach(function(shape, idx){
     var n = shape.cells.length;
-    var weight = n <= 2 ? 3 : (n <= 4 ? 4 : 4);
+    var weight = n <= 2 ? 2 : (n <= 4 ? 4 : 5);
     for (var i=0;i<weight;i++) WEIGHTED_POOL.push(idx);
   });
 
